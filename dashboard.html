@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Form Field Analytics{% endblock %}
+{% block content %}
+<div class="dash-head">
+  <div>
+    <h1>Field analytics dashboard</h1>
+    <p class="muted small" id="updated">Loading…</p>
+  </div>
+  <form id="filters" class="filters" aria-label="Filters">
+    <label>Device
+      <select name="device"><option value="">All devices</option></select>
+    </label>
+    <label>Browser
+      <select name="browser"><option value="">All browsers</option></select>
+    </label>
+    <label>Period
+      <select name="days">
+        <option value="">All time</option>
+        <option value="1">Last 24 hours</option>
+        <option value="7">Last 7 days</option>
+        <option value="30">Last 30 days</option>
+      </select>
+    </label>
+    <label class="check"><input type="checkbox" name="live" checked> Auto-refresh</label>
+    <button type="button" class="btn" id="refresh">Refresh</button>
+  </form>
+</div>
+
+<p id="error" class="card error-box" role="alert" hidden></p>
+
+<section id="empty" class="card empty-state" hidden>
+  <h2>No observations yet</h2>
+  <p>Nothing has been recorded for the selected filters. Fill in the
+    <a href="{{ url_for('checkout') }}">checkout demo</a> a few times, or load synthetic demo data with
+    <code>flask --app app seed</code>.</p>
+</section>
+
+<div id="content" hidden>
+  <section class="tiles" id="tiles" aria-label="Summary"></section>
+
+  <section class="grid grid-wide">
+    <figure class="card chart tone-blue">
+      <figcaption class="chart-head">
+        <div><h2>Sessions over time</h2><p class="muted small" id="timeline-sub">Checkout sessions by start time and outcome</p></div>
+        <ul class="legend" id="timeline-legend"></ul>
+      </figcaption>
+      <div class="svg-chart" id="chart-timeline"></div>
+    </figure>
+    <figure class="card chart">
+      <figcaption><h2>Session outcomes</h2><p class="muted small">Share of all started sessions</p></figcaption>
+      <div class="donut-wrap" id="chart-outcomes"></div>
+    </figure>
+  </section>
+
+  <section class="grid grid-wide">
+    <figure class="card chart tone-violet">
+      <figcaption><h2>Field friction map</h2><p class="muted small">Mean time on field vs. error rate. Bubble size = visits. Top-right fields need attention first.</p></figcaption>
+      <div class="svg-chart" id="chart-friction"></div>
+    </figure>
+    <section class="card insights-card">
+      <h2>Where to look first</h2>
+      <p class="muted small">Diagnostic signals, not proof of cause. Fields with fewer than {{ low_sample }} visits are left out.</p>
+      <ul id="insights" class="insights"></ul>
+    </section>
+  </section>
+
+  <section class="charts">
+    <figure class="card chart tone-red">
+      <figcaption><h2>Error rate by field</h2><p class="muted small">% of visits with at least one validation error</p></figcaption>
+      <div class="bars" id="chart-errors"></div>
+    </figure>
+    <figure class="card chart tone-violet">
+      <figcaption><h2>Mean time on field</h2><p class="muted small">Seconds from focus to blur (valid visits only)</p></figcaption>
+      <div class="bars" id="chart-time"></div>
+    </figure>
+    <figure class="card chart tone-orange">
+      <figcaption><h2>Drop-off by field</h2><p class="muted small">% of sessions visiting the field that were abandoned there</p></figcaption>
+      <div class="bars" id="chart-dropoff"></div>
+    </figure>
+    <figure class="card chart tone-blue">
+      <figcaption><h2>Checkout funnel</h2><p class="muted small">Sessions reaching each stage, with step-to-step loss</p></figcaption>
+      <div class="svg-chart" id="chart-funnel"></div>
+    </figure>
+    <figure class="card chart tone-magenta">
+      <figcaption><h2>Validation error types</h2><p class="muted small">All error events by category</p></figcaption>
+      <div class="bars" id="chart-error-types"></div>
+    </figure>
+    <figure class="card chart tone-aqua">
+      <figcaption><h2>Completion rate by device</h2><p class="muted small">% of sessions started on each device type that completed</p></figcaption>
+      <div class="bars" id="chart-devices"></div>
+    </figure>
+  </section>
+  <p class="muted small legend-note"><span class="swatch hatched"></span> Hatched bar = small sample (under {{ low_sample }} visits), treat with caution.</p>
+
+  <section class="card">
+    <h2>Field comparison</h2>
+    <p class="muted small">Click a column heading to sort.</p>
+    <div class="table-wrap">
+      <table class="data" id="field-table">
+        <thead>
+          <tr>
+            <th data-key="order" scope="col">Field</th>
+            <th data-key="visits" scope="col" class="num">Visits</th>
+            <th data-key="mean_time_s" scope="col" class="num">Mean time</th>
+            <th data-key="median_time_s" scope="col" class="num">Median time</th>
+            <th data-key="error_rate" scope="col" class="num">Error rate</th>
+            <th data-key="correction_rate" scope="col" class="num">Correction rate</th>
+            <th data-key="progression_rate" scope="col" class="num">Progression</th>
+            <th data-key="dropoff_rate" scope="col" class="num">Drop-off</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <details class="card">
+    <summary><h2>Stored data inspector</h2></summary>
+    <p class="muted small">The 25 most recent rows exactly as stored in SQLite. There is no column that could hold a typed value.</p>
+    <div class="table-wrap"><table class="data compact" id="raw-table"><thead></thead><tbody></tbody></table></div>
+  </details>
+</div>
+
+<details class="card definitions">
+  <summary><h2>Metric definitions</h2></summary>
+  <dl>
+    <dt>Visit</dt><dd>One focus on a field, ending at the next blur of that field.</dd>
+    <dt>Time on field</dt><dd>Blur time minus focus time. Visits without a blur, with a negative interval, or longer than {{ max_duration_min }} minutes are excluded from time metrics but still count as visits.</dd>
+    <dt>Error rate</dt><dd>Visits with at least one validation error ÷ visits × 100.</dd>
+    <dt>Correction rate</dt><dd>Visits with at least one correction (an edit after an error) ÷ visits × 100.</dd>
+    <dt>Progression</dt><dd>Visits after which the session focused a later field or submitted the form ÷ visits × 100.</dd>
+    <dt>Drop-off</dt><dd>Abandoned sessions whose last visited field was this one ÷ sessions that visited this field × 100.</dd>
+    <dt>Session status</dt><dd><b>Completed</b> if the form was completed; <b>abandoned</b> if idle for {{ abandon_window_min }} minutes without completing; otherwise <b>in progress</b>.</dd>
+    <dt>Abandonment rate</dt><dd>Abandoned ÷ (completed + abandoned) × 100. In-progress sessions are excluded because their outcome is not yet known.</dd>
+    <dt>N/A</dt><dd>No observations exist to calculate the value. It is never shown as 0.</dd>
+  </dl>
+</details>
+
+<div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+{% endblock %}
+{% block scripts %}
+<script>window.FORMFLOW_RULES = { lowSample: {{ low_sample }} };</script>
+<script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Checkout demo · Form Field Analytics{% endblock %}
+{% block content %}
+<div class="checkout-layout">
+  <form id="checkout" class="card" novalidate data-form-id="checkout">
+    <h1>Checkout</h1>
+    <p class="notice">Prototype only. Use made-up details. Field values stay in your browser; only interaction events are sent.</p>
+
+    {% for section in sections %}
+    <fieldset>
+      <legend>{{ section.title }}</legend>
+      {% for f in section.fields %}
+      {% set tracked = f.track is not defined or f.track %}
+      <div class="field" data-field="{{ f.id }}">
+        <label for="{{ f.id }}">{{ f.label }}{% if f.required %} <span class="req" aria-hidden="true">*</span>{% endif %}</label>
+        {% if f.type == 'select' %}
+        <select id="{{ f.id }}" name="{{ f.id }}"
+                {% if f.required %}required{% endif %}
+                {% if not tracked %}data-track="off"{% endif %}
+                {% if f.error %}data-error="{{ f.error }}"{% endif %}
+                aria-describedby="{{ f.id }}-msg">
+          <option value="">Select…</option>
+          {% for opt in f.options %}<option>{{ opt }}</option>{% endfor %}
+        </select>
+        {% else %}
+        <input id="{{ f.id }}" name="{{ f.id }}" type="{{ f.type }}"
+               {% if f.required %}required{% endif %}
+               {% if f.minlength %}minlength="{{ f.minlength }}"{% endif %}
+               {% if f.pattern %}data-pattern="{{ f.pattern }}"{% endif %}
+               {% if f.autocomplete %}autocomplete="{{ f.autocomplete }}"{% endif %}
+               {% if f.inputmode %}inputmode="{{ f.inputmode }}"{% endif %}
+               {% if not tracked %}data-track="off"{% endif %}
+               {% if f.error %}data-error="{{ f.error }}"{% endif %}
+               aria-describedby="{{ f.id }}-msg">
+        {% endif %}
+        <small class="hint" id="{{ f.id }}-hint">{{ f.hint or '' }}</small>
+        <small class="error-msg" id="{{ f.id }}-msg" role="alert"></small>
+      </div>
+      {% endfor %}
+    </fieldset>
+    {% endfor %}
+
+    <button type="submit" class="btn primary wide">Place order (demo)</button>
+  </form>
+
+  <aside class="card side">
+    <h2>Order summary</h2>
+    <div class="line"><span>Wireless earbuds</span><span>₹2,499</span></div>
+    <div class="line"><span>Shipping</span><span>₹49</span></div>
+    <div class="line total"><span>Total</span><span>₹2,548</span></div>
+    <hr>
+    <h3>Live event log</h3>
+    <p class="muted small">Exactly what is sent to the server - notice there are no values.</p>
+    <ol id="event-log" class="event-log"></ol>
+  </aside>
+</div>
+
+<div id="done" class="card done" hidden>
+  <h1>Order placed (demo)</h1>
+  <p>Thanks! This journey has been recorded as <b>completed</b>. No order or payment was processed.</p>
+  <div class="actions">
+    <a class="btn primary" href="{{ url_for('checkout') }}">Start another journey</a>
+    <a class="btn" href="{{ url_for('dashboard') }}">See it on the dashboard</a>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='tracker.js') }}"></script>
+<script src="{{ url_for('static', filename='checkout.js') }}"></script>
+{% endblock %}

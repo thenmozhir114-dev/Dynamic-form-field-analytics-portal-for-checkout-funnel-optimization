@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="hero">
+  <h1>Dynamic Form Field Analytics Portal</h1>
+  <p class="lead">Find the exact checkout field that slows customers down, without ever recording what they type.</p>
+  <div class="actions">
+    <a class="btn primary" href="{{ url_for('checkout') }}">Try the checkout form</a>
+    <a class="btn" href="{{ url_for('dashboard') }}">Open the dashboard</a>
+  </div>
+</section>
+
+<section class="steps">
+  <div class="step tone-blue"><span class="step-num">1</span><b>Capture</b><p>A small script listens for focus, blur, input, validation errors and corrections on each field.</p></div>
+  <div class="step tone-aqua"><span class="step-num">2</span><b>Validate &amp; store</b><p>A Flask API checks every event against an allowlist and stores it in SQLite.</p></div>
+  <div class="step tone-violet"><span class="step-num">3</span><b>Analyse</b><p>Visits, time per field, error, correction, progression and drop-off rates are calculated.</p></div>
+  <div class="step tone-orange"><span class="step-num">4</span><b>Improve</b><p>The dashboard ranks fields so the team knows which one to fix and re-test first.</p></div>
+</section>
+
+<section class="card privacy">
+  <h2>What is collected</h2>
+  <div class="two-col">
+    <div class="tone-aqua">
+      <h3>Stored</h3>
+      <ul>
+        <li>Field identifier (e.g. <code>postal_code</code>)</li>
+        <li>Event type and timestamp</li>
+        <li>Random session token</li>
+        <li>Coarse device and browser category</li>
+        <li>Validation error category (required / format / length)</li>
+      </ul>
+    </div>
+    <div class="tone-red">
+      <h3>Never collected</h3>
+      <ul>
+        <li>Anything typed into a field</li>
+        <li>Names, emails, phone numbers, addresses</li>
+        <li>Card number, CVV or any payment field (not instrumented)</li>
+        <li>IP address or full user-agent string</li>
+      </ul>
+    </div>
+  </div>
+</section>
+{% endblock %}
